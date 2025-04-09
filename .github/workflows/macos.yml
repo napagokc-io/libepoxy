@@ -37,7 +37,7 @@ jobs:
           mkdir -p meson-logs
           /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
       - name: Upload build logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: build-logs-${{ matrix.build-opts || 'default' }}

@@ -19,9 +19,6 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-        # Remove the custom repository that doesn't exist
-        # with:
-        #   repository: napagokc-io/libepoxy.git
       - uses: actions/setup-python@v4
         with:
           python-version: 3.x
@@ -32,7 +29,10 @@ jobs:
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/macos.yml') }}
       - name: Install dependencies and build
         run: |
-          brew install ninja
+          # Check if ninja is installed, install only if not present
+          if ! command -v ninja &> /dev/null; then
+            brew install ninja
+          fi
           python -m pip install --upgrade pip
           pip3 install meson
           mkdir -p meson-logs
@@ -47,3 +47,12 @@ jobs:
           path: |
             meson-logs/
           retention-days: 7
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: libepoxy-build-${{ matrix.build-opts || 'default' }}
+          path: |
+            build/
+            builddir/
+          retention-days: 30

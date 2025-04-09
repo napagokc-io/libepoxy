@@ -11,16 +11,27 @@ jobs:
         build-opts:
           - ''
           - '-Dglx=no'
-          - '-Degl=no'
+          - '-Degl=yes'
           - '-Dx11=false'
-    runs-on: macos-10.15
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.x
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+          key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/macos.yml') }}
       - run: |
           brew install ninja
           python -m pip install --upgrade pip
           pip3 install meson
           /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}"
+      - uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: build-logs-${{ matrix.build-opts }}
+          path: |
+            **/meson-logs/

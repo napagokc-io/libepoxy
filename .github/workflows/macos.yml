@@ -58,6 +58,24 @@ jobs:
           ls -la $BUILD_DIR
           echo "==== Listing dylib files ===="
           find $BUILD_DIR -name "*.dylib" | sort
+
+          # Create a directory for collecting artifacts
+          mkdir -p artifacts
+          
+          # Copy libraries
+          find $BUILD_DIR -name "*.dylib" -exec cp {} artifacts/ \;
+          
+          # Copy test files (if they exist)
+          mkdir -p artifacts/test
+          if [ -d "$BUILD_DIR/test" ]; then
+            cp -R $BUILD_DIR/test/* artifacts/test/ || true
+          fi
+          
+          # Copy header files (if they exist)
+          mkdir -p artifacts/include
+          if [ -d "$BUILD_DIR/include" ]; then
+            cp -R $BUILD_DIR/include/* artifacts/include/ || true
+          fi
       
       - name: Upload build logs
         uses: actions/upload-artifact@v4
@@ -74,8 +92,5 @@ jobs:
         with:
           name: libepoxy-build-${{ matrix.build-opts || 'default' }}
           path: |
-            ${{ env.BUILD_DIR }}/src/libepoxy.*.dylib
-            ${{ env.BUILD_DIR }}/src/libepoxy.dylib
-            ${{ env.BUILD_DIR }}/test/*
-            ${{ env.BUILD_DIR }}/include/epoxy/*
+            artifacts/
           retention-days: 30

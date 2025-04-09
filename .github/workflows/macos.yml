@@ -14,6 +14,8 @@ jobs:
           - '-Dglx=no'
           - '-Degl=yes'
           - '-Dx11=false'
+      # Prevent the entire matrix from failing if one configuration fails
+      fail-fast: false
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,14 +29,18 @@ jobs:
           path: |
             ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/macos.yml') }}
-      - run: |
+      - name: Install dependencies and build
+        run: |
           brew install ninja
           python -m pip install --upgrade pip
           pip3 install meson
-          /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}"
-      - uses: actions/upload-artifact@v3
-        if: success() || failure()
+          mkdir -p meson-logs
+          /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
+      - name: Upload build logs
+        uses: actions/upload-artifact@v3
+        if: always()
         with:
-          name: build-logs-${{ matrix.build-opts }}
+          name: build-logs-${{ matrix.build-opts || 'default' }}
           path: |
             **/meson-logs/
+          retention-days: 7

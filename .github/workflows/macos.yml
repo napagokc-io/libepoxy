@@ -39,6 +39,12 @@ jobs:
           /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
           # Ensure there's something in the logs directory for artifact upload
           touch meson-logs/build.log
+          
+          # Debug: Find where build artifacts are located
+          echo "==== Listing potential build directories ===="
+          find . -type d -name "build*" | sort
+          find . -name "*.dylib" | sort
+          find . -name "*.a" | sort
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         if: always()
@@ -53,6 +59,7 @@ jobs:
         with:
           name: libepoxy-build-${{ matrix.build-opts || 'default' }}
           path: |
-            build/
-            builddir/
+            **/*.dylib
+            **/*.a
+            **/build*/
           retention-days: 30

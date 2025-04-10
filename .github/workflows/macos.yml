@@ -36,15 +36,27 @@ jobs:
           python -m pip install --upgrade pip
           pip3 install meson
           mkdir -p meson-logs
+          
+          # Run the build script
           /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
+          
           # Ensure there's something in the logs directory for artifact upload
           touch meson-logs/build.log
           
-          # Debug: Find where build artifacts are located
-          echo "==== Listing potential build directories ===="
-          find . -type d -name "build*" | sort
-          find . -name "*.dylib" | sort
-          find . -name "*.a" | sort
+          # Find the build directory that was created
+          BUILD_DIR=$(find /var/folders -type d -name "build_*" -mmin -5 | head -1)
+          echo "Found build directory: $BUILD_DIR"
+          
+          # Get just the directory name (not the full path)
+          BUILD_NAME=$(basename "$BUILD_DIR")
+          echo "BUILD_NAME=$BUILD_NAME" >> $GITHUB_ENV
+          
+          # Debug: List what's in the build directory
+          echo "==== Contents of $BUILD_DIR ===="
+          ls -la "$BUILD_DIR"
+          echo "==== Libraries in $BUILD_DIR ===="
+          find "$BUILD_DIR" -name "*.dylib" | sort
+          
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         if: always()
@@ -53,13 +65,15 @@ jobs:
           path: |
             meson-logs/
           retention-days: 7
+      
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: libepoxy-build-${{ matrix.build-opts || 'default' }}
           path: |
-            **/*.dylib
-            **/*.a
-            **/build*/
+            # Only include specific files from the build directory
+            /var/folders/**/${{ env.BUILD_NAME }}/src/*.dylib
+            /var/folders/**/${{ env.BUILD_NAME }}/include/**/*.h
+            /var/folders/**/${{ env.BUILD_NAME }}/test/*
           retention-days: 30

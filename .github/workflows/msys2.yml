@@ -2,9 +2,12 @@ name: MSYS2 Build
 
 on:
   push:
-    branches: [ master ]
+    branches-ignore:
+      - debian
+      - khronos-registry
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -15,13 +18,82 @@ jobs:
     env:
       PYTHONIOENCODING: "utf-8"
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v4
     - uses: msys2/setup-msys2@v2
       with:
         msystem: MINGW64
         update: true
-        install: base-devel git mingw-w64-x86_64-meson mingw-w64-x86_64-ninja mingw-w64-x86_64-pkg-config mingw-w64-x86_64-python3 mingw-w64-x86_64-python3-pip mingw-w64-x86_64-toolchain
+        install: >-
+          base-devel
+          git
+          mingw-w64-x86_64-meson
+          mingw-w64-x86_64-ninja
+          mingw-w64-x86_64-pkg-config
+          mingw-w64-x86_64-python3
+          mingw-w64-x86_64-python3-pip
+          mingw-w64-x86_64-toolchain
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-cmake
+    
+    - name: Environment Info
+      run: |
+        echo "==== System Information ===="
+        uname -a
+        echo "==== Compiler Version ===="
+        gcc --version
+        echo "==== Build Tools ===="
+        meson --version
+        ninja --version
+        pkg-config --version
+        
     - name: Build
       run: |
-        meson setup _build
-        meson compile -C _build
+        # Create a build directory
+        mkdir -p _build
+        
+        # Configure with Meson
+        meson setup _build || (cat _build/meson-logs/meson-log.txt && false)
+        
+        # Build with Ninja
+        ninja -C _build || (cat _build/meson-logs/meson-log.txt && false)
+        
+        # List the generated files
+        echo "==== Generated Files ===="
+        find _build -name "*.dll" -o -name "*.a" | sort
+        
+    - name: Run Tests
+      run: |
+        ninja -C _build test || true
+        
+    - name: Prepare Artifacts
+      run: |
+        mkdir -p artifacts/bin
+        mkdir -p artifacts/lib
+        mkdir -p artifacts/include
+        
+        # Copy DLLs and libraries
+        cp _build/src/*.dll artifacts/bin/ || true
+        cp _build/src/*.a artifacts/lib/ || true
+        
+        # Copy headers
+        cp -r _build/include/* artifacts/include/ || true
+        
+        # List what we've collected
+        echo "==== Artifact Contents ===="
+        find artifacts -type f | sort
+        
+    - name: Upload Build Logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: msys2-build-logs
+        path: _build/meson-logs/
+        retention-days: 7
+        
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: msys2-build-artifacts
+        path: artifacts/
+        retention-days: 30

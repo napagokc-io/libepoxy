@@ -57,6 +57,7 @@ CMake Options:
 * `-DENABLE_EGL=OFF` - Disable EGL support
 * `-DENABLE_X11=OFF` - Disable X11 support
 * `-DBUILD_APPLE_FRAMEWORK=ON` - Build as a native Apple Framework (macOS/iOS)
+* `-DBUILD_TESTS=ON` - Enable tests (when they're implemented)
 
 ## Dependencies
 
@@ -137,9 +138,13 @@ The test suite has additional dependencies depending on the platform
 
 ```cmake
 # In your project's CMakeLists.txt
+cmake_minimum_required(VERSION 3.18)
+project(my_opengl_app)
+
 find_package(epoxy REQUIRED)
-add_executable(myapp main.c)
-target_link_libraries(myapp PRIVATE epoxy::epoxy)
+
+add_executable(my_app main.c)
+target_link_libraries(my_app PRIVATE epoxy::epoxy)
 ```
 
 ### With pkg-config

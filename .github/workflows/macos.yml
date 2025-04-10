@@ -29,7 +29,7 @@ jobs:
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/macos.yml') }}
       - name: Install dependencies and build
         run: |
-          # Check if ninja is installed, install only if not present
+          # Check if ninja is installed, install only if present
           if ! command -v ninja &> /dev/null; then
             brew install ninja
           fi
@@ -40,16 +40,44 @@ jobs:
           # Run the build script
           /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
           
+          # Find the build directory - this should be created by the script
+          BUILD_DIR=$(find . -type d -name "build_*" | head -1)
+          echo "Found build directory: $BUILD_DIR"
+          
+          # Copy logs to a consistent location
+          if [ -d "$BUILD_DIR/meson-logs" ]; then
+            cp -R "$BUILD_DIR/meson-logs/"* meson-logs/ || true
+          fi
+          
           # Ensure there's something in the logs directory for artifact upload
           touch meson-logs/build.log
           
-          # Debug: Find build artifacts (but avoid searching system directories)
-          echo "==== Listing potential build directories ===="
-          find . -type d -name "build*" | sort
-          echo "==== Listing dylib files in workspace ===="
-          find . -name "*.dylib" | sort
-          echo "==== Listing static libraries ===="
-          find . -name "*.a" | sort
+          # Create a directory with a simpler structure for the artifacts
+          mkdir -p artifacts/lib
+          mkdir -p artifacts/include
+          mkdir -p artifacts/test
+          
+          # Copy the dylib files
+          if [ -f "$BUILD_DIR/src/libepoxy.dylib" ]; then
+            cp "$BUILD_DIR/src/libepoxy.dylib" artifacts/lib/
+            cp "$BUILD_DIR/src/libepoxy.0.dylib" artifacts/lib/ || true
+          fi
+          
+          # Copy header files
+          if [ -d "$BUILD_DIR/include" ]; then
+            cp -R "$BUILD_DIR/include/"* artifacts/include/ || true
+          fi
+          
+          # Copy test files
+          if [ -d "$BUILD_DIR/test" ]; then
+            cp -R "$BUILD_DIR/test/" artifacts/test/ || true
+          fi
+          
+          # List what we've gathered
+          echo "=== Artifacts contents ==="
+          ls -la artifacts/lib/
+          ls -la artifacts/include/ || true
+          ls -la artifacts/test/ || true
       
       - name: Upload build logs
         uses: actions/upload-artifact@v4
@@ -66,8 +94,5 @@ jobs:
         with:
           name: libepoxy-build-${{ matrix.build-opts || 'default' }}
           path: |
-            ./**/*.dylib
-            ./**/*.a
-            ./**/build*/*.dylib
-            ./**/build*/*.a
+            artifacts/
           retention-days: 30

@@ -59,28 +59,29 @@ jobs:
           echo "==== Listing dylib files ===="
           find $BUILD_DIR -name "*.dylib" | sort
 
-          # Create a directory for collecting artifacts in the workspace
-          WORKSPACE="$GITHUB_WORKSPACE"
-          mkdir -p "$WORKSPACE/artifacts"
+          # Create a directory for collecting artifacts (use the 'pwd' command to get current directory)
+          mkdir -p ./artifacts
           
           # Copy libraries
-          find $BUILD_DIR -name "*.dylib" -exec cp {} "$WORKSPACE/artifacts/" \;
+          find $BUILD_DIR -name "*.dylib" -exec cp {} ./artifacts/ \;
           
           # Copy test files (if they exist)
-          mkdir -p "$WORKSPACE/artifacts/test"
+          mkdir -p ./artifacts/test
           if [ -d "$BUILD_DIR/test" ]; then
-            cp -R $BUILD_DIR/test/* "$WORKSPACE/artifacts/test/" || true
+            cp -R $BUILD_DIR/test/* ./artifacts/test/ || true
           fi
           
           # Copy header files (if they exist)
-          mkdir -p "$WORKSPACE/artifacts/include"
+          mkdir -p ./artifacts/include
           if [ -d "$BUILD_DIR/include" ]; then
-            cp -R $BUILD_DIR/include/* "$WORKSPACE/artifacts/include/" || true
+            cp -R $BUILD_DIR/include/* ./artifacts/include/ || true
           fi
           
           # List the contents of the artifacts directory to verify
           echo "==== Artifacts Directory Contents ===="
-          ls -la "$WORKSPACE/artifacts"
+          ls -la ./artifacts
+          echo "==== Current Directory ===="
+          pwd
       
       - name: Upload build logs
         uses: actions/upload-artifact@v4
@@ -95,5 +96,5 @@ jobs:
         if: success()
         with:
           name: libepoxy-build-${{ matrix.build-opts || 'default' }}
-          path: artifacts/
+          path: ./artifacts/
           retention-days: 30

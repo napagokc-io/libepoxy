@@ -29,8 +29,9 @@ jobs:
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/macos.yml') }}
       - name: Install dependencies and build
         run: |
-          # Install required dependencies
-          brew install ninja pkg-config
+          # Install required dependencies (only if not already installed)
+          brew list ninja &>/dev/null || brew install ninja
+          brew list pkg-config &>/dev/null || brew install pkg-config
           python -m pip install --upgrade pip
           pip3 install meson
           mkdir -p meson-logs
@@ -51,6 +52,9 @@ jobs:
           
           # Make the script executable
           chmod +x .github/scripts/epoxy-ci-osx.sh
+          
+          # Create a directory for artifacts in the workspace
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
           
           # Run the build script with better error handling
           echo "=== Running build with options: ${{ matrix.build-opts }} ==="

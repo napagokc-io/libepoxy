@@ -70,7 +70,8 @@ ninja
 # Install (optional)
 sudo ninja install
 
-# Alternatively, use the provided CI script (from the repo root directory)
+# Alternatively, use the provided CI script (from the repo root directory). The script uses CC to set OBJC, so specifying CC=clang ensures both C and Objective-C compilation use clang.
+
 CC=clang ./.github/scripts/epoxy-ci-osx.sh
 
 # You can also pass build options to the script

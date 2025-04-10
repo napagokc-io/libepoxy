@@ -12,7 +12,7 @@ jobs:
         build-opts:
           - ''
           - '-Dglx=no'
-          - '-Degl=yes'
+          - '-Degl=no'
           - '-Dx11=false'
       # Prevent the entire matrix from failing if one configuration fails
       fail-fast: false

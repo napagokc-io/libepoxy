@@ -29,18 +29,26 @@ jobs:
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/macos.yml') }}
       - name: Install dependencies and build
         run: |
-          # Check if ninja is installed, install only if present
-          if ! command -v ninja &> /dev/null; then
-            brew install ninja
-          fi
+          # Install dependencies
+          brew list ninja &>/dev/null || brew install ninja
+          brew list pkg-config &>/dev/null || brew install pkg-config
           python -m pip install --upgrade pip
           pip3 install meson
           mkdir -p meson-logs
           
-          # Run the build script
-          /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
+          # Set environment variables (similar to the script)
+          export SDKROOT=$( xcodebuild -version -sdk macosx Path )
+          export CPPFLAGS=-I/usr/local/include
+          export LDFLAGS=-L/usr/local/lib
+          export OBJC=clang
+          export CC=clang
+          export BUILDOPTS="${{ matrix.build-opts }}"
           
-          # Find the build directory - this should be created by the script
+          # Run the build script
+          chmod +x .github/scripts/epoxy-ci-osx.sh
+          .github/scripts/epoxy-ci-osx.sh || true
+          
+          # Find the build directory created by the script
           BUILD_DIR=$(find . -type d -name "build_*" | head -1)
           echo "Found build directory: $BUILD_DIR"
           

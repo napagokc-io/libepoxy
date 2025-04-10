@@ -35,66 +35,31 @@ jobs:
           fi
           python -m pip install --upgrade pip
           pip3 install meson
-          
-          # Create directory for build logs
           mkdir -p meson-logs
-          
-          # Build the project with specified options
-          BUILD_DIR=$(mktemp -d -t build_XXXXXX)
-          echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
-          
-          /bin/sh -c "CC=clang BUILDDIR=$BUILD_DIR .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
-          
+          /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
           # Ensure there's something in the logs directory for artifact upload
-          if [ -d "$BUILD_DIR/meson-logs" ]; then
-            cp -R "$BUILD_DIR/meson-logs/"* meson-logs/ || true
-          fi
           touch meson-logs/build.log
           
-          # Debug output
-          echo "==== Build Directory ====="
-          echo $BUILD_DIR
-          echo "==== Listing contents of build directory ===="
-          ls -la $BUILD_DIR
-          echo "==== Listing dylib files ===="
-          find $BUILD_DIR -name "*.dylib" | sort
-
-          # Create a directory for collecting artifacts (use the 'pwd' command to get current directory)
-          mkdir -p ./artifacts
-          
-          # Copy libraries
-          find $BUILD_DIR -name "*.dylib" -exec cp {} ./artifacts/ \;
-          
-          # Copy test files (if they exist)
-          mkdir -p ./artifacts/test
-          if [ -d "$BUILD_DIR/test" ]; then
-            cp -R $BUILD_DIR/test/* ./artifacts/test/ || true
-          fi
-          
-          # Copy header files (if they exist)
-          mkdir -p ./artifacts/include
-          if [ -d "$BUILD_DIR/include" ]; then
-            cp -R $BUILD_DIR/include/* ./artifacts/include/ || true
-          fi
-          
-          # List the contents of the artifacts directory to verify
-          echo "==== Artifacts Directory Contents ===="
-          ls -la ./artifacts
-          echo "==== Current Directory ===="
-          pwd
-      
+          # Debug: Find where build artifacts are located
+          echo "==== Listing potential build directories ===="
+          find . -type d -name "build*" | sort
+          find . -name "*.dylib" | sort
+          find . -name "*.a" | sort
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: build-logs-${{ matrix.build-opts || 'default' }}
-          path: meson-logs/
+          path: |
+            meson-logs/
           retention-days: 7
-      
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: libepoxy-build-${{ matrix.build-opts || 'default' }}
-          path: ./artifacts/
+          path: |
+            **/*.dylib
+            **/*.a
+            **/build*/
           retention-days: 30

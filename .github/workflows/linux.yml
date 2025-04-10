@@ -4,12 +4,14 @@ on:
     branches-ignore:
       - debian
       - khronos-registry
+  workflow_dispatch:
+
 jobs:
   build:
     strategy:
       matrix:
         os: 
-          - ubuntu-18.04
+          - ubuntu-latest        
         compiler:
           - gcc
           - clang
@@ -18,10 +20,12 @@ jobs:
           - '-Dglx=no'
           - '-Degl=no'
           - '-Dx11=false'
+      fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - run: >
+      - uses: actions/checkout@v4  # Updated to v4
+      - name: Install dependencies
+        run: >
           sudo apt-get update &&
           sudo apt-get install --no-install-recommends
           libgl1-mesa-dev
@@ -29,10 +33,67 @@ jobs:
           libgles2-mesa-dev
           libgl1-mesa-dri
           ninja-build
-      - uses: actions/setup-python@v2
+          pkg-config
+          xorg-dev
+      - uses: actions/setup-python@v4  # Updated to v4
         with:
           python-version: 3.x
-      - run: |
+      - name: Build
+        run: |
           python -m pip install --upgrade pip
           pip3 install meson
+          
+          # Create a directory for logs
+          mkdir -p meson-logs
+          
+          # Run the build script
           /bin/sh -c "CC=${{ matrix.compiler }} .github/scripts/epoxy-ci-linux.sh ${{ matrix.build-opts }}"
+          
+          # Find the build directory
+          BUILD_DIR=$(find . -maxdepth 1 -type d -name "build_*" | head -1)
+          echo "Found build directory: $BUILD_DIR"
+          
+          # Create directories for artifacts
+          mkdir -p artifacts/lib
+          mkdir -p artifacts/include
+          mkdir -p artifacts/test
+          
+          # Copy the libraries
+          if [ -d "$BUILD_DIR/src" ]; then
+            cp -P $BUILD_DIR/src/*.so* artifacts/lib/ || true
+            cp -P $BUILD_DIR/src/*.a artifacts/lib/ || true
+          fi
+          
+          # Copy header files
+          if [ -d "$BUILD_DIR/include" ]; then
+            cp -R $BUILD_DIR/include/* artifacts/include/ || true
+          fi
+          
+          # Copy test files
+          if [ -d "$BUILD_DIR/test" ]; then
+            find $BUILD_DIR/test -type f -executable -exec cp {} artifacts/test/ \; || true
+          fi
+          
+          # List what we've gathered
+          echo "=== Artifacts contents ==="
+          ls -la artifacts/lib/
+          ls -la artifacts/include/ || true
+          ls -la artifacts/test/ || true
+      
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build-opts || 'default' }}
+          path: |
+            meson-logs/
+          retention-days: 7
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: libepoxy-build-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build-opts || 'default' }}
+          path: |
+            artifacts/
+          retention-days: 30

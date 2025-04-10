@@ -29,34 +29,71 @@ jobs:
           key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/macos.yml') }}
       - name: Install dependencies and build
         run: |
-          # Check if ninja is installed, install only if not present
-          if ! command -v ninja &> /dev/null; then
-            brew install ninja
-          fi
+          # Install required dependencies
+          brew install ninja pkg-config
           python -m pip install --upgrade pip
           pip3 install meson
           mkdir -p meson-logs
           
-          # Run the build script
-          /bin/sh -c "CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}" || true
+          # Print versions for debugging
+          echo "=== Environment Information ==="
+          python --version
+          meson --version
+          ninja --version
+          clang --version
+          
+          # Check if the build script exists
+          if [ ! -f ".github/scripts/epoxy-ci-osx.sh" ]; then
+            echo "Error: Build script not found at .github/scripts/epoxy-ci-osx.sh"
+            ls -la .github/scripts/
+            exit 1
+          fi
+          
+          # Make the script executable
+          chmod +x .github/scripts/epoxy-ci-osx.sh
+          
+          # Run the build script with better error handling
+          echo "=== Running build with options: ${{ matrix.build-opts }} ==="
+          CC=clang .github/scripts/epoxy-ci-osx.sh ${{ matrix.build-opts }}
+          BUILD_STATUS=$?
+          
+          if [ $BUILD_STATUS -ne 0 ]; then
+            echo "Build failed with status $BUILD_STATUS"
+            # Continue anyway to collect logs
+          fi
           
           # Ensure there's something in the logs directory for artifact upload
           touch meson-logs/build.log
           
-          # Find the build directory that was created
+          # Find the build directory that was created (if any)
           BUILD_DIR=$(find /var/folders -type d -name "build_*" -mmin -5 | head -1)
-          echo "Found build directory: $BUILD_DIR"
           
-          # Get just the directory name (not the full path)
-          BUILD_NAME=$(basename "$BUILD_DIR")
-          echo "BUILD_NAME=$BUILD_NAME" >> $GITHUB_ENV
+          if [ -n "$BUILD_DIR" ]; then
+            echo "Found build directory: $BUILD_DIR"
+            echo "BUILD_DIR=$BUILD_DIR" >> $GITHUB_ENV
+            
+            # Get just the directory name (not the full path)
+            BUILD_NAME=$(basename "$BUILD_DIR")
+            echo "BUILD_NAME=$BUILD_NAME" >> $GITHUB_ENV
+            
+            # Debug: List what's in the build directory
+            echo "==== Contents of $BUILD_DIR ===="
+            ls -la "$BUILD_DIR"
+            
+            # Copy any meson logs to our log directory
+            if [ -d "$BUILD_DIR/meson-logs" ]; then
+              cp -r "$BUILD_DIR/meson-logs/"* meson-logs/ || true
+            fi
+            
+            echo "==== Libraries in $BUILD_DIR ===="
+            find "$BUILD_DIR" -name "*.dylib" | sort
+          else
+            echo "No build directory found. Build likely failed early."
+          fi
           
-          # Debug: List what's in the build directory
-          echo "==== Contents of $BUILD_DIR ===="
-          ls -la "$BUILD_DIR"
-          echo "==== Libraries in $BUILD_DIR ===="
-          find "$BUILD_DIR" -name "*.dylib" | sort
-          
+          # Exit with the original build status
+          exit $BUILD_STATUS
+      
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         if: always()

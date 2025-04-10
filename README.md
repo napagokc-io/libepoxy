@@ -43,10 +43,42 @@ Dependencies for Debian:
   * meson
   * libegl1-mesa-dev
 
-Dependencies for macOS (using MacPorts): 
+Dependencies for macOS:
 
-  * pkgconfig
-  * meson
+Using Homebrew:
+```sh
+brew install ninja pkg-config
+python3 -m pip install meson
+```
+
+Using MacPorts:
+```sh
+sudo port install pkgconfig ninja meson
+```
+
+Building on macOS:
+```sh
+# Create build directory
+mkdir -p build && cd build
+
+# Configure with Meson
+meson setup ..
+
+# Build the library
+ninja
+
+# Install (optional)
+sudo ninja install
+
+# Alternatively, use the provided CI script (from the repo root directory)
+CC=clang ./.github/scripts/epoxy-ci-osx.sh
+
+# You can also pass build options to the script
+CC=clang ./.github/scripts/epoxy-ci-osx.sh -Dglx=no
+```
+
+On macOS, libepoxy uses the native OpenGL framework. The build doesn't require X11 or EGL, 
+though these can be enabled with build options (`-Dx11=true` or `-Degl=yes`).
 
 The test suite has additional dependencies depending on the platform.
 (X11, EGL, a running X Server).
